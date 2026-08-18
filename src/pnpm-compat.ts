@@ -37,6 +37,7 @@ export function pluginArgsFor(profileDir: string, pluginArgs: string[]): string[
 export interface PnpmFailure {
   code: 'adding-to-root' | 'not-a-workspace' | 'hoist-pattern-diff' | 'pnpm-missing' | 'release-age-violation'
     | 'ignored-builds' | 'git-prepare-not-allowed' | 'fetch-404' | 'transient-network' | 'fetch-timeout'
+    | 'broken-file-dep'
   /** Bilingual, actionable message shown to the user instead of the raw wall of text. */
   message: string
   /** True when re-running `pnpm install` in the profile is the documented recovery. */
@@ -131,6 +132,22 @@ export function classifyPnpmFailure(output: string): PnpmFailure | null {
       code: 'git-prepare-not-allowed',
       recoverable: false,
       message: '这个 git 插件需要在安装时执行构建脚本，被 pnpm 默认拦截。点击「允许构建脚本并重试」放行后重试即可 / this git-hosted plugin needs to run its build script at install time, which pnpm blocks by default — click "Allow build scripts and retry" to approve and retry',
+    }
+  }
+  // A local `file:`/`link:` dependency whose target directory vanished: pnpm
+  // replays the WHOLE tree on every add/remove, so one broken local spec
+  // (typically `file:node_modules/<pkg>` written against a profile whose
+  // packages live one level up in the flat fallback, or residue of an
+  // interrupted install) blocks EVERY later install, of anything. The market
+  // repairs the manifest and retries; this message covers the case where the
+  // repair could not fix it.
+  if (output.includes('LINKED_PKG_DIR_NOT_FOUND')
+    || output.includes('NOT_PACKAGE_DIRECTORY')
+    || /Could not install from .+ as it (does not exist|is not a directory)/i.test(output)) {
+    return {
+      code: 'broken-file-dep',
+      recoverable: false,
+      message: '这个 profile 里有一个指向不存在目录的本地依赖（file:/link: 路径失效），pnpm 会重放整个依赖树，所以它会拦截所有安装/卸载。市场已尝试自动修复该依赖并重试；若仍看到本条，请手动检查 profile package.json 里的 file:/link: 条目，或导出日志反馈 / a local dependency (file:/link:) in this profile points to a directory that does not exist; pnpm replays the whole tree, so it blocks every install/remove. The market tried to repair it automatically and retried — if you still see this, check the file:/link: entries in the profile\'s package.json by hand, or export the log',
     }
   }
   // #65: a dependency that no longer resolves — an unpublished package left

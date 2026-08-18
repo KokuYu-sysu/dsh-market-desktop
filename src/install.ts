@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { InstallResult, PluginRunner } from './dsh-cli.ts'
 import { classifyPnpmFailure, isTransientPnpmFailure } from './pnpm-compat.ts'
-import { conflictingEntryIds, hasDshManifest, hasLoadableEntry, pluginSubdirs, profileDir, readInstalled, readProfileBundles } from './profile.ts'
+import { conflictingEntryIds, hasDshManifest, hasLoadableEntry, pluginSubdirs, profileDir, readInstalled, readProfileBundles, repairBrokenFileDeps } from './profile.ts'
 import { logEvent } from './log.ts'
 import { cleanOrphanedStore } from './store.ts'
 
@@ -45,7 +45,7 @@ export const FETCH_TIMEOUT_OVERRIDE = '--config.fetchTimeout=600000'
  * appended to stderr so the UI shows an actionable message instead of a
  * wall of text (#20 bug 3). Cancelled runs are never recovered.
  */
-export async function withHoistRecovery(run: PluginRunner, profile: string, pluginArgs: string[]): Promise<InstallResult> {
+export async function withHoistRecovery(run: PluginRunner, profile: string, pluginArgs: string[], explicitDir?: string): Promise<InstallResult> {
   let result = await run(profile, pluginArgs)
   const ok = (r: InstallResult): boolean => r.exitCode === 0 && !r.timedOut && !r.cancelled
   if (!ok(result) && !result.cancelled) {
@@ -82,6 +82,19 @@ export async function withHoistRecovery(run: PluginRunner, profile: string, plug
       // so retry once with a longer fetchTimeout.
       logEvent('warn', 'install', `pnpm's per-request fetch timeout aborted a large download — retrying once with ${FETCH_TIMEOUT_OVERRIDE}`)
       result = await run(profile, [pluginArgs[0], FETCH_TIMEOUT_OVERRIDE, ...pluginArgs.slice(1)])
+    } else if (
+      failure?.code === 'broken-file-dep'
+      && (pluginArgs[0] === 'add' || pluginArgs[0] === 'remove' || pluginArgs[0] === 'install')
+    ) {
+      // A broken local file:/link: spec blocks pnpm's whole-tree replay. Repair
+      // the manifest (file:node_modules/<pkg> → link:../node_modules/<pkg>) and
+      // retry once; when nothing could be repaired the classified explanation
+      // is left for the caller to surface as-is.
+      const repaired = repairBrokenFileDeps(profile, explicitDir)
+      if (repaired.length > 0) {
+        logEvent('warn', 'install', `repaired broken local dependency spec(s): ${repaired.join(', ')} — retrying once`)
+        result = await run(profile, pluginArgs)
+      }
     }
   }
   if (!ok(result) && !result.cancelled) {

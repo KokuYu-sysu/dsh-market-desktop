@@ -315,7 +315,7 @@ export function mountMarketRoutes(
   }
 
   /** Every plugin command goes through the pnpm-drift recovery wrapper (#20). */
-  const runPlugin = (profile: string, args: string[]) => withHoistRecovery(commands.runPlugin, profile, args)
+  const runPlugin = (profile: string, args: string[]) => withHoistRecovery(commands.runPlugin, profile, args, activeProfileDir)
 
   async function restoreBackup(value: unknown): Promise<{ files: number; errors: { name: string; error: string }[] }> {
     if (!await probePnpm()) throw new Error('pnpm is required to restore plugins')

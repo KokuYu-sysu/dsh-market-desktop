@@ -93,6 +93,21 @@ describe('classifyPnpmFailure', () => {
     expect(classifyPnpmFailure('some other failure')?.code).toBeUndefined()
   })
 
+  it('recognizes a vanished local file:/link: dependency as broken-file-dep', () => {
+    // The exact shape the desktop profile hit: a `file:node_modules/<pkg>`
+    // spec whose directory is gone, blocking every later install's replay.
+    const missing = classifyPnpmFailure('[ERR_PNPM_LINKED_PKG_DIR_NOT_FOUND] Could not install from "C:\\Users\\u\\.dsh\\profiles\\desktop\\node_modules\\@anionex\\dsh-vision-toolkit" as it does not exist.')
+    expect(missing?.code).toBe('broken-file-dep')
+    expect(missing?.message).toContain('file:/link:')
+    // The not-a-directory twin is the same class of broken local spec.
+    expect(classifyPnpmFailure('[ERR_PNPM_NOT_PACKAGE_DIRECTORY] Could not install from "/tmp/x" as it is not a directory.')?.code)
+      .toBe('broken-file-dep')
+    // The bare sentence (no error code) still matches via the regex branch.
+    expect(classifyPnpmFailure('Could not install from "/tmp/x" as it is not a directory.')?.code).toBe('broken-file-dep')
+    // Must not be swallowed by the transient-network matcher (#83).
+    expect(classifyPnpmFailure('Could not install from "C:\\x" as it does not exist.')?.code).toBe('broken-file-dep')
+  })
+
   it('recognizes both build-script blocks: ignored builds (#69) and the git-prepare fetcher rejection (#68)', () => {
     const ignored = classifyPnpmFailure('[ERR_PNPM_IGNORED_BUILDS]\nIgnored build scripts: dsh-github-intelligence@https://codeload.github.com/z/r/tar.gz/abc.')
     expect(ignored?.code).toBe('ignored-builds')

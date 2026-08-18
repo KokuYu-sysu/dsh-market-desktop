@@ -5,7 +5,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { InstallResult } from '../src/dsh-cli.ts'
@@ -182,6 +182,51 @@ describe('withHoistRecovery', () => {
       ['add', 'github:volcengine/OpenViking#path:/examples/dsh-memory-plugin'],
       ['add', FETCH_TIMEOUT_OVERRIDE, 'github:volcengine/OpenViking#path:/examples/dsh-memory-plugin'],
     ])
+  })
+
+  it('repairs a vanished file:node_modules/<pkg> spec to link:../ and retries once', async () => {
+    const dir = writeProfile({ dshmarket: 'file:node_modules/dshmarket' })
+    // The package actually lives one level up, in the profiles flat fallback —
+    // the exact shape the desktop profile hit (ERR_PNPM_LINKED_PKG_DIR_NOT_FOUND).
+    const fallback = join(home, 'profiles', 'node_modules', 'dshmarket')
+    mkdirSync(fallback, { recursive: true })
+    writeFileSync(join(fallback, 'package.json'), '{"name":"dshmarket","version":"1.0.0"}')
+
+    const broken = '[ERR_PNPM_LINKED_PKG_DIR_NOT_FOUND] Could not install from "C:\\u\\.dsh\\profiles\\desktop\\node_modules\\dshmarket" as it does not exist.'
+    const calls: string[][] = []
+    let failFirst = true
+    const run = async (_profile: string, args: string[]): Promise<InstallResult> => {
+      calls.push(args)
+      if (failFirst) {
+        failFirst = false
+        return { exitCode: 1, timedOut: false, stdout: '', stderr: broken, cancelled: false }
+      }
+      return ok
+    }
+    const result = await withHoistRecovery(run, 'web', ['add', 'dsh-loop'], dir)
+    expect(result.exitCode).toBe(0)
+    // Original command, then the exact same command retried after the repair.
+    expect(calls).toEqual([['add', 'dsh-loop'], ['add', 'dsh-loop']])
+    const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { dependencies: Record<string, string> }
+    expect(manifest.dependencies.dshmarket).toBe('link:../node_modules/dshmarket')
+  })
+
+  it('does not retry when a broken-file-dep has nothing to repair', async () => {
+    const dir = writeProfile({ dshmarket: 'file:node_modules/dshmarket' })
+    // No fallback package this time — the repair finds nothing to re-point at,
+    // so the recovery must NOT retry and must leave the classified message.
+    const broken = '[ERR_PNPM_LINKED_PKG_DIR_NOT_FOUND] Could not install from "C:\\u\\.dsh\\profiles\\desktop\\node_modules\\dshmarket" as it does not exist.'
+    const calls: string[][] = []
+    const run = async (_profile: string, args: string[]): Promise<InstallResult> => {
+      calls.push(args)
+      if (args[0] === 'store') return { exitCode: 0, timedOut: false, stdout: '', stderr: '', cancelled: false }
+      return { exitCode: 1, timedOut: false, stdout: '', stderr: broken, cancelled: false }
+    }
+    const result = await withHoistRecovery(run, 'web', ['add', 'dsh-loop'], dir)
+    expect(result.exitCode).toBe(1)
+    // Original command only, then the trailing orphaned-store probe — no retry.
+    expect(calls.map(c => c.join(' '))).toEqual(['add dsh-loop', 'store path'])
+    expect(result.stderr).toContain('file:/link:')
   })
 
   it('does not double-apply the fetchTimeout override when it is already present', async () => {

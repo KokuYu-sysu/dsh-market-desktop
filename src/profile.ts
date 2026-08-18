@@ -6,7 +6,7 @@
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 /**
  * Resolve a profile name to its directory under DSH_HOME (default ~/.dsh).
@@ -91,6 +91,57 @@ export function restoreManifestDeps(profile: string, snapshot: Record<string, st
   manifest.dependencies = { ...snapshot }
   writeFileSync(file, `${JSON.stringify(manifest, null, 2)}\n`)
   return [...touched]
+}
+
+/**
+ * Repair `file:` dependency specs whose target directory is missing but whose
+ * package IS present one level up in the profiles flat fallback
+ * (`$DSH_HOME/profiles/node_modules`). pnpm replays the WHOLE tree on every
+ * add/remove, so a single broken local spec — the reported shape is
+ * `file:node_modules/<pkg>` written against a profile whose packages live in
+ * the shared fallback — blocks every later install with
+ * ERR_PNPM_LINKED_PKG_DIR_NOT_FOUND. Rewriting the spec to
+ * `link:../node_modules/<pkg>` makes pnpm symlink the real package without
+ * re-resolving its dependencies (network-free) and unblocks the operation.
+ * Only bare relative paths are touched; `.`/`..`/absolute `file:` specs are
+ * left alone. Safe when the profile dir is the host-authoritative explicit
+ * directory (DSH Desktop) or derived from `profile`.
+ * @returns the names whose specs were repaired, empty when nothing needed it.
+ */
+export function repairBrokenFileDeps(profile: string, explicitDir?: string): string[] {
+  const dir = profileDir(profile, explicitDir)
+  const file = join(dir, 'package.json')
+  let manifest: { dependencies?: Record<string, string> }
+  try {
+    manifest = JSON.parse(readFileSync(file, 'utf8')) as { dependencies?: Record<string, string> }
+  } catch {
+    return []
+  }
+  const deps = { ...manifest.dependencies }
+  // The flat fallback is one level up from the profile dir; `normalized`
+  // already carries the `node_modules/…` tail, so join against the parent.
+  const parent = dirname(dir)
+  const repaired: string[] = []
+  for (const [name, spec] of Object.entries(deps)) {
+    if (!spec.startsWith('file:')) continue
+    const rel = spec.slice('file:'.length)
+    // Only bare relative paths (`node_modules/<pkg>`): `.`/`..`/absolute forms
+    // are anchored elsewhere and must not be re-pointed here.
+    if (rel === '' || /^(?:[\\/]|[A-Za-z]:)/.test(rel)) continue
+    if (rel === '.' || rel === '..'
+      || rel.startsWith('./') || rel.startsWith('../')
+      || rel.startsWith('.\\') || rel.startsWith('..\\')) continue
+    const normalized = rel.replace(/\\/g, '/')
+    if (normalized.split('/').some(seg => seg === '' || seg === '.' || seg === '..')) continue
+    if (existsSync(join(dir, normalized))) continue
+    if (!existsSync(join(parent, normalized))) continue
+    deps[name] = `link:../${normalized}`
+    repaired.push(name)
+  }
+  if (repaired.length === 0) return []
+  manifest.dependencies = deps
+  writeFileSync(file, `${JSON.stringify(manifest, null, 2)}\n`)
+  return repaired
 }
 
 /** The version actually present in the profile's node_modules, or null. */
