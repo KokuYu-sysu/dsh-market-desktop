@@ -8,9 +8,9 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dsh-market/dsh-market.git"
+    "url": "git+https://github.com/KokuYu-sysu/dsh-market-desktop.git"
   },
-  "homepage": "https://dshmarket.com",
+  "homepage": "https://github.com/KokuYu-sysu/dsh-market-desktop",
   "keywords": [
     "deepseek",
     "harness",

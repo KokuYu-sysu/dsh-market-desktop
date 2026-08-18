@@ -9,6 +9,11 @@ English | [中文](README.zh.md)
 [![npm](https://img.shields.io/npm/v/dshmarket)](https://www.npmjs.com/package/dshmarket)
 [![stars](https://img.shields.io/github/stars/dsh-market/dsh-market?style=flat)](https://github.com/dsh-market/dsh-market)
 
+> ⚠️ **This fork targets [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop)** — the Electron desktop app of DeepSeek Harness.
+> Peer dependencies are pinned to the in-box dsh `0.1.0-rc.6`, and plugin installs that previously
+> failed with `ERR_PNPM_LINKED_PKG_DIR_NOT_FOUND` are now self-healed.
+> See [INSTALL.md](./INSTALL.md) for download & usage. 中文说明见 [README.zh.md](./README.zh.md)。
+
 The plugin market inside DeepSeek Harness. Open Settings → **Plugin Market** → browse, search, one-click install.
 
 ![dsh-market](assets/demo-en.png)

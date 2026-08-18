@@ -9,6 +9,11 @@
 [![npm](https://img.shields.io/npm/v/dshmarket)](https://www.npmjs.com/package/dshmarket)
 [![stars](https://img.shields.io/github/stars/dsh-market/dsh-market?style=flat)](https://github.com/dsh-market/dsh-market)
 
+> ⚠️ **本分支专为 [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop)（DeepSeek Harness 的 Electron 桌面端）适配。**
+> 已将 peer 依赖对齐到内置的 dsh `0.1.0-rc.6`，并修复了安装任意插件时报
+> `ERR_PNPM_LINKED_PKG_DIR_NOT_FOUND` 的问题（现在会自动修复失效的本地依赖）。
+> 下载与使用见 [INSTALL.md](./INSTALL.md)。
+
 装在 DeepSeek Harness 里的插件市场。打开设置 → **插件市场** → 逛一逛，点一下，装好。
 
 ![dsh-market](assets/demo-zh.png)
