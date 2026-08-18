@@ -9,7 +9,13 @@
 
 ## 安装
 
-### 方式 1：克隆源码，本地构建后安装（推荐，最可靠）
+### 方式 1：从本仓库直接安装（推荐，最简单）
+
+```sh
+dsh plugin --profile desktop add github:KokuYu-sysu/dsh-market-desktop
+```
+
+### 方式 2：克隆源码，本地构建后安装（适合开发者 / 二次修改）
 
 ```sh
 git clone https://github.com/KokuYu-sysu/dsh-market-desktop.git
@@ -18,16 +24,6 @@ pnpm install
 pnpm build
 dsh plugin --profile desktop add .
 ```
-
-### 方式 2：从本仓库直接安装
-
-```sh
-dsh plugin --profile desktop add github:KokuYu-sysu/dsh-market-desktop
-```
-
-> 本仓库未提交 `lib/` 构建产物，从 GitHub 直接安装时 pnpm 会因 `prepare` 构建脚本被默认拦截而报
-> `ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED`，需要在 `pnpm-workspace.yaml` 的 `allowBuilds` 里放行，
-> 且构建还需要 devDependencies。想开箱即用请用方式 1，或把本分支发布到 npm。
 
 ### 关于 npm
 
@@ -50,7 +46,7 @@ profile 里有失效的本地依赖。本版本会自动修复；若仍失败，
 
 ### 提示需要构建脚本授权
 
-pnpm ≥10 默认禁止依赖执行构建脚本。点击市场里的「允许构建脚本并重试」即可。
+pnpm ≥10 默认禁止依赖执行构建脚本（通常发生在安装其它需要构建的插件时）。点击市场里的「允许构建脚本并重试」即可。
 
 ## 许可证
 

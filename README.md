@@ -9,7 +9,13 @@ The plugin market for [DSH Desktop](https://github.com/anywhere-labs/deepseek-ha
 
 ## Install
 
-### Option 1: clone, build locally, install (recommended)
+### Option 1: install straight from this repo (recommended)
+
+```sh
+dsh plugin --profile desktop add github:KokuYu-sysu/dsh-market-desktop
+```
+
+### Option 2: clone, build locally, install (for developers / further changes)
 
 ```sh
 git clone https://github.com/KokuYu-sysu/dsh-market-desktop.git
@@ -18,17 +24,6 @@ pnpm install
 pnpm build
 dsh plugin --profile desktop add .
 ```
-
-### Option 2: install straight from this repo
-
-```sh
-dsh plugin --profile desktop add github:KokuYu-sysu/dsh-market-desktop
-```
-
-> This repo does not commit the `lib/` build output, so installing from GitHub trips pnpm's default
-> build-script block (`ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED`) — you must allow it in `allowBuilds`,
-> and the build also needs devDependencies. Use Option 1, or publish this fork to npm, for an
-> out-of-the-box install.
 
 ### About npm
 
@@ -51,7 +46,7 @@ The profile has a stale local dependency. This version auto-repairs it; if it st
 
 ### "build scripts" authorization prompt
 
-pnpm ≥10 blocks dependency build scripts by default. Click "Allow build scripts and retry" in the market.
+pnpm ≥10 blocks dependency build scripts by default (usually when installing other plugins that need a build step). Click "Allow build scripts and retry" in the market.
 
 ## License
 
