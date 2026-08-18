@@ -28,7 +28,6 @@
     "test": "vitest run",
     "test:compat": "vitest run --config vitest.compat.config.ts",
     "prepack": "npm run build && node scripts/preflight.mjs",
-    "prepare": "npm run build",
     "validate:registry": "node scripts/validate-registry.mjs",
     "snapshot": "curl -sf https://awesome-dsh-plugin.com/plugins.json -o data/registry-snapshot.json",
     "test:web": "vitest run --config vitest.web.config.ts"
